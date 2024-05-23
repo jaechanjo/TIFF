@@ -9,6 +9,7 @@ Python implementation
 
 ### Performace by method
 1. Performance comparison of generated images between existing methods and TIFF.
+
 | Method         | L1↓   | Cos Dist.↓ | LPIPS↓ | SSIM↑  | PSNR↑  |
 |----------------|-------|-------------|--------|--------|--------|
 | LoRA           | 1.169 | 0.845       | 0.750  | 0.426  | 11.106 |
@@ -17,6 +18,7 @@ Python implementation
 | Ref Image(GT)  | 0.838 | 0.419       | 0.386  | 0.546  | inf.   |
 
 2. Performance comparison of generated videos between existing methods and TIFF.
+
 | Method         | L1↓   | Cos Dist.↓ | LPIPS↓ | SSIM↑  | PSNR↑  |
 |----------------|-------|-------------|--------|--------|--------|
 | LoRA           | 1.251 | 0.969       | 0.773  | 0.434  | 10.424 |
