@@ -5,7 +5,7 @@ Python implementation
 
 **[Jaechan Jo](mailto:jjc123a@naver.com)**
 
-![result](docs/image/result.jpg)
+![variation](docs/images/variation.png)
 
 ### Performace by method
 1. Performance comparison of generated images between existing methods and TIFF.
@@ -28,11 +28,13 @@ Python implementation
 
 ## Method Overview
 1. The System Architecture for Generating Customized Animations with TIFF and Face Module.
-![system_architecture](docs/image/system_architecture.jpg)
+<img src="docs/images/system_architecture.png" alt="system_architecture" width="600"/>
 2. The architecture of proposed TIFF and Face Module.
-![tiff_architecture](docs/image/tiff_architecture.jpg)
-3. The Architecture of [Champ](https://github.com/fudan-generative-vision/champ) Enhanced with the Face Module for Improved Facial Details.
-![animation_archiecture](docs/image/animation_architecture.jpg)
+<img src="docs/images/TIFF_architecture.png" alt="TIFF_architecture" width="600"/>
+
+3. The Architecture of [Champ](https://github.com/fudan-generative-vision/champ) Enhanced with the Face Module for Improved Facial Details. 
+<img src="docs/images/animation_architecture.png" alt="animation_architecture" width="600"/>
+
 
 ## Evaluation
 
