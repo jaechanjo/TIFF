@@ -1,3 +1,5 @@
 # Reference Images Directory
 
-This folder contains reference images used for various projects and tasks. Each image file can be used as a reference in different contexts.
+This folder contains reference images.
+
+These images include reference images that guide text with various prompts. They are used to generate animations based on these images.
