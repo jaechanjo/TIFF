@@ -1,0 +1,1 @@
+face detector model checkpoints
