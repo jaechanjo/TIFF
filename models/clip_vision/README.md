@@ -1,0 +1,1 @@
+clip vision model checkpoints
