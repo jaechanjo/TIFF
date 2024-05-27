@@ -49,12 +49,12 @@ The performance evaluation was conducted using the following five metrics: L1, C
     <td>11.626</td>
   </tr>
   <tr>
-    <td>IPA-Plus-FaceID</td>
-    <td>1.074</td>
-    <td>0.678</td>
-    <td>0.676</td>
-    <td>0.492</td>
-    <td>12.758</td>
+    <td><b>IPA-Plus-FaceID</b></td>
+    <td><b>1.074</b></td>
+    <td><b>0.678</b></td>
+    <td><b>0.676</b></td>
+    <td><b>0.492</b></td>
+    <td><b>12.758</b></td>
   </tr>
 </table>
 <table style="width:100%">
@@ -83,12 +83,12 @@ The performance evaluation was conducted using the following five metrics: L1, C
     <td>10.666</td>
   </tr>
   <tr>
-    <td>TIFF (Ours)</td>
-    <td>0.892</td>
-    <td>0.478</td>
-    <td>0.691</td>
-    <td>0.431</td>
-    <td>12.406</td>
+    <td><b>TIFF (Ours)</b></td>
+    <td><b>0.892</b></td>
+    <td><b>0.478</b></td>
+    <td><b>0.691</b></td>
+    <td><b>0.431</b></td>
+    <td><b>12.406</b></td>
   </tr>
   <tr>
     <td>Ref Image (GT)</td>
@@ -125,12 +125,12 @@ The performance evaluation was conducted using the following five metrics: L1, C
     <td>10.869</td>
   </tr>
   <tr>
-    <td>TIFF (Ours)</td>
-    <td>0.967</td>
-    <td>0.568</td>
-    <td>0.723</td>
-    <td>0.438</td>
-    <td>12.293</td>
+    <td><b>TIFF (Ours)</b></td>
+    <td><b>0.967</b></td>
+    <td><b>0.568</b></td>
+    <td><b>0.723</b></td>
+    <td><b>0.438</b></td>
+    <td><b>12.293</b></td>
   </tr>
   <tr>
     <td>Ref Video (GT)</td>
@@ -160,12 +160,12 @@ The performance evaluation was conducted using the following five metrics: L1, C
     <td>10.445</td>
   </tr>
   <tr>
-    <td>with IPA</td>
-    <td>1.076</td>
-    <td>0.686</td>
-    <td>0.716</td>
-    <td>0.461</td>
-    <td>11.968</td>
+    <td><b>with IPA</b></td>
+    <td><b>1.076</b></td>
+    <td><b>0.686</b></td>
+    <td><b>0.716</b></td>
+    <td><b>0.461</b></td>
+    <td><b>11.968</b></td>
   </tr>
 </table>
 <table style="width:100%">
@@ -194,12 +194,12 @@ The performance evaluation was conducted using the following five metrics: L1, C
     <td>12.626</td>
   </tr>
   <tr>
-    <td>GFPGAN v1.4</td>
-    <td>0.814</td>
-    <td>0.385</td>
-    <td>0.692</td>
-    <td>0.496</td>
-    <td>12.682</td>
+    <td><b>GFPGAN v1.4</b></td>
+    <td><b>0.814</b></td>
+    <td><b>0.385</b></td>
+    <td><b>0.692</b></td>
+    <td><b>0.496</b></td>
+    <td><b>12.682</b></td>
   </tr>
 </table>
 <table style="width:100%">
@@ -220,12 +220,12 @@ The performance evaluation was conducted using the following five metrics: L1, C
     <td>11.191</td>
   </tr>
   <tr>
-    <td>With Face Module</td>
-    <td>0.949</td>
-    <td>0.545</td>
-    <td>0.751</td>
-    <td>0.402</td>
-    <td>11.601</td>
+    <td><b>With Face Module</b></td>
+    <td><b>0.949</b></td>
+    <td><b>0.545</b></td>
+    <td><b>0.751</b></td>
+    <td><b>0.402</b></td>
+    <td><b>11.601</b></td>
   </tr>
 </table>
 <table style="width:100%">
@@ -246,13 +246,14 @@ The performance evaluation was conducted using the following five metrics: L1, C
     <td>11.097</td>
   </tr>
   <tr>
-    <td>With IPA Face Module</td>
-    <td>0.987</td>
-    <td>0.596</td>
-    <td>0.752</td>
-    <td>0.407</td>
-    <td>11.694</td>
+    <td><b>With IPA Face Module</b></td>
+    <td><b>0.987</b></td>
+    <td><b>0.596</b></td>
+    <td><b>0.752</b></td>
+    <td><b>0.407</b></td>
+    <td><b>11.694</b></td>
   </tr>
+</table>
 
 ### 3. Validation
 
