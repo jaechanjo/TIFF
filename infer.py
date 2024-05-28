@@ -1,4 +1,4 @@
-## This script is currently under development.
+# This script is currently under development.
 
 import os
 import random
