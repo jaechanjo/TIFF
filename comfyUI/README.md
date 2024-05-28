@@ -9,18 +9,18 @@ The workflow is divided into two main modules:
 
 ## How to Use workflow.json in ComfyUI
 
-To use the `workflow.json` file in ComfyUI, follow these steps:
+To use the `TIFF_ComfyUI_workflow.json` file in ComfyUI, follow these steps:
 
 1. **Open ComfyUI**:
     - Start ComfyUI on your machine. Ensure that you have it installed and properly configured.
 
 2. **Locate the workflow.json File**:
-    - Ensure you have the `workflow.json` file available on your system. This file contains the configuration for the workflow.
+    - Ensure you have the `TIFF_ComfyUI_workflow.json` file available on your system. This file contains the configuration for the workflow.
 
 3. **Load the workflow.json File**:
     - In ComfyUI, navigate to the `File` menu.
     - Select `Import Workflow`.
-    - Browse to the location of the `workflow.json` file and select it.
+    - Browse to the location of the `TIFF_ComfyUI_workflow.json` file and select it.
 
 4. **Verify the Workflow**:
     - Once loaded, verify that the workflow appears correctly in ComfyUI.
