@@ -6,7 +6,7 @@
 cat requirements.txt | while read PACKAGE; do pip install "$PACKAGE"; done  # ignore error of install version 
 ```
 
-``Python
+```Python
 pip3 install -r requirements.txt 
 ```
 
