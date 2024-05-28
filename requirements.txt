@@ -4,7 +4,7 @@ addict
 aiohttp
 albumentations
 cmake
-diffusers>=0.26.0
+diffusers==0.26.0
 einops>=0.4.1
 facenet-pytorch
 fairscale>=0.4.4
