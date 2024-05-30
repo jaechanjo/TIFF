@@ -3,6 +3,7 @@ accelerate>=0.21.0
 addict
 aiohttp
 albumentations
+argparse
 cmake
 diffusers==0.26.0
 einops>=0.4.1
@@ -52,6 +53,7 @@ torchvision==0.17.2+cu121
 tqdm>=4.66.1
 transformers>=4.30.2
 trimesh[easy]
+ffmpeg
 ultralytics
 xformers==0.0.25.post1
 yacs
