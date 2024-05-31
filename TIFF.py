@@ -5,7 +5,7 @@ import json
 import argparse
 import contextlib
 import numpy as np
-from PIL import Image  # 라이브러리 추가
+from PIL import Image
 from typing import Sequence, Mapping, Any, Union
 import torch
 
