@@ -118,7 +118,7 @@ def import_custom_nodes() -> None:
 
 
 def save_image_wrapper(context, cls):
-    if args.output is None:
+    if args.output_dir is None:
         return cls
 
     from PIL import Image, ImageOps, ImageSequence
@@ -132,12 +132,12 @@ def save_image_wrapper(context, cls):
         def save_images(
             self, images, filename_prefix="ComfyUI", prompt=None, extra_pnginfo=None
         ):
-            if args.output is None:
+            if args.output_dir is None:
                 return super().save_images(
                     images, filename_prefix, prompt, extra_pnginfo
                 )
             else:
-                if len(images) > 1 and args.output == "-":
+                if len(images) > 1 and args.output_dir == "-":
                     raise ValueError("Cannot save multiple images to stdout")
                 filename_prefix += self.prefix_append
 
@@ -154,7 +154,7 @@ def save_image_wrapper(context, cls):
                             for x in extra_pnginfo:
                                 metadata.add_text(x, json.dumps(extra_pnginfo[x]))
 
-                    if args.output == "-":
+                    if args.output_dir == "-":
                         # Hack to briefly restore stdout
                         if context is not None:
                             context.__exit__(None, None, None)
@@ -171,19 +171,19 @@ def save_image_wrapper(context, cls):
                     else:
                         subfolder = ""
                         if len(images) == 1:
-                            if os.path.isdir(args.output):
-                                subfolder = args.output
+                            if os.path.isdir(args.output_dir):
+                                subfolder = args.output_dir
                                 file = "output.png"
                             else:
-                                subfolder, file = os.path.split(args.output)
+                                subfolder, file = os.path.split(args.output_dir)
                                 if subfolder == "":
                                     subfolder = os.getcwd()
                         else:
-                            if os.path.isdir(args.output):
-                                subfolder = args.output
+                            if os.path.isdir(args.output_dir):
+                                subfolder = args.output_dir
                                 file = filename_prefix
                             else:
-                                subfolder, file = os.path.split(args.output)
+                                subfolder, file = os.path.split(args.output_dir)
 
                             if subfolder == "":
                                 subfolder = os.getcwd()
@@ -316,7 +316,7 @@ args = None
 if __name__ == "__main__":
     args = parser.parse_args()
     sys.argv = comfy_args
-if args is not None and args.output is not None and args.output == "-":
+if args is not None and args.output_dir is not None and args.output_dir == "-":
     ctx = contextlib.redirect_stdout(sys.stderr)
 else:
     ctx = contextlib.nullcontext()
@@ -811,7 +811,7 @@ def main(*func_args, **func_kwargs):
             
             # 예시로 frame들을 생성합니다. 실제로는 입력 프레임들을 여기에 넣어야 합니다.
             frames = get_value_at_index(reactorfaceswap_101, 0)
-            frame_rate = args.output_frame_rate
+            frame_rate = args.output_dir_frame_rate
             output_dir = args.output_dir
             
             video_path = save_video(frames, frame_rate, output_dir)
