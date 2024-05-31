@@ -1,5 +1,3 @@
-## This script is currently under development.
-
 import os
 import random
 import sys
@@ -10,8 +8,8 @@ from typing import Sequence, Mapping, Any, Union
 import torch
 import subprocess
 import numpy as np
-from PIL import Image
-import datetime
+from PIL import Image, PngImagePlugin, ExifTags
+from datetime import datetime
 
 
 def get_value_at_index(obj: Union[Sequence, Mapping], index: int) -> Any:
@@ -238,7 +236,7 @@ parser = argparse.ArgumentParser(
     description="A converted ComfyUI workflow. Required inputs listed below. Values passed should be valid JSON (assumes string if not valid JSON)."
 )
 parser.add_argument(
-    "--queue-size",
+    "--queue_size",
     "-q",
     type=int,
     default=1,
@@ -246,57 +244,67 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--comfyui-directory",
+    "--comfyui_directory",
     "-c",
     default=None,
     help="Where to look for ComfyUI (default: current directory)",
 )
 
 parser.add_argument(
-    "--output",
+    "--output_dir",
     "-o",
     default=None,
-    help="The location to save the output image. Either a file path, a directory, or - for stdout (default: the ComfyUI output directory)",
+    help="The directory to save the output image. Either a file path, a directory, or - for stdout (default: the ComfyUI output directory)",
 )
 
 parser.add_argument(
-    "--disable-metadata",
+    "--disable_metadata",
     action="store_true",
     help="Disables writing workflow metadata to the outputs",
 )
 
-# 추가된 인자들
 parser.add_argument(
-    "--video",
+    "--source_video",
+    type=str,
     required=True,
-    help="Path to the source motion video",
+    help="The path to the source video file.",
 )
 
 parser.add_argument(
-    "--frame-load-cap",
+    "--frame_load_cap",
     type=int,
-    default=0,
-    help="Number of frames to load from the video (default: 0, meaning all frames)",
+    default=16,
+    help="The maximum number of frames to load.",
 )
 
 parser.add_argument(
-    "--positive-prompt",
+    "--positive_prompt",
     type=str,
     required=True,
-    help="Positive text prompt for the model",
-)
-parser.add_argument(
-    "--negative-prompt",
-    type=str,
-    required=True,
-    help="Negative text prompt for the model",
-)
-parser.add_argument(
-    "--ref-image",
-    required=True,
-    help="Path to the reference image for the person",
+    help="The positive prompt for the generation.",
 )
 
+parser.add_argument(
+    "--negative_prompt",
+    type=str,
+    required=True,
+    help="The negative prompt for the generation.",
+)
+
+parser.add_argument(
+    "--ref_image",
+    type=str,
+    required=True,
+    help="The reference image to use for the generation.",
+)
+
+parser.add_argument(
+    "--output_frame_rate",
+    type=str,
+    default=8,
+    required=True,
+    help="The reference image to use for the generation.",
+)
 
 comfy_args = [sys.argv[0]]
 if "--" in sys.argv:
@@ -313,693 +321,9 @@ if args is not None and args.output is not None and args.output == "-":
 else:
     ctx = contextlib.nullcontext()
 
-PROMPT_DATA = {
-    "10": {
-        "inputs": {
-            "diffusion_dtype": "auto",
-            "vae_dtype": "auto",
-            "model": ["51", 0],
-            "vae": ["43", 0]
-        },
-        "class_type": "champ_model_loader",
-        "_meta": {"title": "champ_model_loader"}
-    },
-    "11": {
-        "inputs": {
-            "width": ["48", 0],
-            "height": ["48", 1],
-            "steps": 36,
-            "guidance_scale": 2,
-            "frames": ["12", 1],
-            "seed": 0,
-            "keep_model_loaded": True,
-            "scheduler": "DDPMScheduler",
-            "champ_model": ["10", 0],
-            "champ_vae": ["10", 1],
-            "champ_encoder": ["10", 2],
-            "image": ["14", 0],
-            "depth_tensors": ["31", 0],
-            "normal_tensors": ["28", 0],
-            "semantic_tensors": ["33", 0],
-            "dwpose_tensors": ["13", 0]
-        },
-        "class_type": "champ_sampler",
-        "_meta": {"title": "champ_sampler"}
-    },
-    "12": {
-        "inputs": {
-            "video": args.video,  # 소스 모션 비디오 경로
-            "force_rate": 8,
-            "force_size": "Disabled",
-            "custom_width": 1024,
-            "custom_height": 1024,
-            "frame_load_cap": args.frame_load_cap,  # 비디오의 처음부터 사용할 프레임 수
-            "skip_first_frames": 0,
-            "select_every_nth": 1
-        },
-        "class_type": "VHS_LoadVideo",
-        "_meta": {"title": "Load Video (Upload) 🎥🆕🆗🆂"}
-    },
-    "13": {
-        "inputs": {
-            "detect_hand": "enable",
-            "detect_body": "enable",
-            "detect_face": "enable",
-            "resolution": ["15", 0],
-            "bbox_detector": "yolox_l.onnx",
-            "pose_estimator": "dw-ll_ucoco_384_bs5.torchscript.pt",
-            "image": ["18", 0]
-        },
-        "class_type": "DWPreprocessor",
-        "_meta": {"title": "DWPose Estimator"}
-    },
-    "14": {
-        "inputs": {
-            "width": ["48", 0],
-            "height": ["48", 1],
-            "interpolation": "lanczos",
-            "keep_proportion": True,
-            "condition": "always",
-            "multiple_of": 64,
-            "image": ["73", 0]
-        },
-        "class_type": "ImageResize+",
-        "_meta": {"title": "🔧 Image Resize"}
-    },
-    "15": {
-        "inputs": {
-            "image_gen_width": ["48", 0],
-            "image_gen_height": ["48", 1],
-            "resize_mode": "Resize and Fill",
-            "original_image": ["18", 0]
-        },
-        "class_type": "PixelPerfectResolution",
-        "_meta": {"title": "Pixel Perfect Resolution"}
-    },
-    "16": {
-        "inputs": {
-            "width": ["48", 0],
-            "height": ["48", 1],
-            "interpolation": "lanczos",
-            "keep_proportion": False,
-            "condition": "always",
-            "multiple_of": 64,
-            "image": ["12", 0]
-        },
-        "class_type": "ImageResize+",
-        "_meta": {"title": "🔧 Image Resize"}
-    },
-    "17": {
-        "inputs": {
-            "device": "auto",
-            "image": ["19", 0]
-        },
-        "class_type": "BiRefNet",
-        "_meta": {"title": "BiRefNet Segmentation"}
-    },
-    "18": {
-        "inputs": {
-            "x": 0,
-            "y": 0,
-            "resize_source": True,
-            "destination": ["16", 0],
-            "source": ["20", 0],
-            "mask": ["29", 0]
-        },
-        "class_type": "ImageCompositeMasked",
-        "_meta": {"title": "ImageCompositeMasked"}
-    },
-    "19": {
-        "inputs": {
-            "image": ["16", 0]
-        },
-        "class_type": "ImpactImageBatchToImageList",
-        "_meta": {"title": "Image batch to Image List"}
-    },
-    "20": {
-        "inputs": {
-            "width": ["48", 1],
-            "height": ["48", 1],
-            "batch_size": 1,
-            "color": 0
-        },
-        "class_type": "EmptyImage",
-        "_meta": {"title": "EmptyImage"}
-    },
-    "21": {
-        "inputs": {
-            "mask": ["17", 0]
-        },
-        "class_type": "MaskListToMaskBatch",
-        "_meta": {"title": "Mask List to Masks"}
-    },
-    "22": {
-        "inputs": {
-            "x": 0,
-            "y": 0,
-            "resize_source": True,
-            "destination": ["14", 0],
-            "source": ["24", 0],
-            "mask": ["25", 0]
-        },
-        "class_type": "ImageCompositeMasked",
-        "_meta": {"title": "ImageCompositeMasked"}
-    },
-    "23": {
-        "inputs": {
-            "device": "cuda:0",
-            "image": ["73", 0]
-        },
-        "class_type": "BiRefNet",
-        "_meta": {"title": "BiRefNet Segmentation"}
-    },
-    "24": {
-        "inputs": {
-            "width": ["48", 0],
-            "height": ["48", 1],
-            "batch_size": 1,
-            "color": 0
-        },
-        "class_type": "EmptyImage",
-        "_meta": {"title": "EmptyImage"}
-    },
-    "25": {
-        "inputs": {
-            "expand": 2,
-            "incremental_expandrate": 0,
-            "tapered_corners": True,
-            "flip_input": True,
-            "blur_radius": 0.2,
-            "lerp_alpha": 1,
-            "decay_factor": 1,
-            "fill_holes": False,
-            "mask": ["23", 0]
-        },
-        "class_type": "GrowMaskWithBlur",
-        "_meta": {"title": "GrowMaskWithBlur"}
-    },
-    "26": {
-        "inputs": {
-            "fov": 60,
-            "iterations": 5,
-            "resolution": ["46", 0],
-            "image": ["18", 0]
-        },
-        "class_type": "DSINE-NormalMapPreprocessor",
-        "_meta": {"title": "DSINE Normal Map"}
-    },
-    "27": {
-        "inputs": {
-            "images": ["18", 0]
-        },
-        "class_type": "PreviewImage",
-        "_meta": {"title": "Preview Image"}
-    },
-    "28": {
-        "inputs": {
-            "x": 0,
-            "y": 0,
-            "resize_source": True,
-            "destination": ["26", 0],
-            "source": ["20", 0],
-            "mask": ["29", 0]
-        },
-        "class_type": "ImageCompositeMasked",
-        "_meta": {"title": "ImageCompositeMasked"}
-    },
-    "29": {
-        "inputs": {
-            "mask": ["21", 0]
-        },
-        "class_type": "InvertMask",
-        "_meta": {"title": "InvertMask"}
-    },
-    "30": {
-        "inputs": {
-            "ckpt_name": "depth_anything_vitl14.pth",
-            "resolution": ["46", 0],
-            "image": ["18", 0]
-        },
-        "class_type": "DepthAnythingPreprocessor",
-        "_meta": {"title": "Depth Anything"}
-    },
-    "31": {
-        "inputs": {
-            "x": 0,
-            "y": 0,
-            "resize_source": True,
-            "destination": ["30", 0],
-            "source": ["20", 0],
-            "mask": ["29", 0]
-        },
-        "class_type": "ImageCompositeMasked",
-        "_meta": {"title": "ImageCompositeMasked"}
-    },
-    "32": {
-        "inputs": {
-            "model": "densepose_r101_fpn_dl.torchscript",
-            "cmap": "Viridis (MagicAnimate)",
-            "resolution": ["46", 0],
-            "image": ["18", 0]
-        },
-        "class_type": "DensePosePreprocessor",
-        "_meta": {"title": "DensePose Estimator"}
-    },
-    "33": {
-        "inputs": {
-            "x": 0,
-            "y": 0,
-            "resize_source": True,
-            "destination": ["32", 0],
-            "source": ["20", 0],
-            "mask": ["29", 0]
-        },
-        "class_type": "ImageCompositeMasked",
-        "_meta": {"title": "ImageCompositeMasked"}
-    },
-    "34": {
-        "inputs": {
-            "mask_threshold": 250,
-            "gaussblur_radius": 8,
-            "invert_mask": False,
-            "images": ["59", 0],
-            "masks": ["25", 1]
-        },
-        "class_type": "LamaRemover",
-        "_meta": {"title": "Big lama Remover"}
-    },
-    "35": {
-        "inputs": {
-            "x": 0,
-            "y": 0,
-            "resize_source": True,
-            "destination": ["11", 0],
-            "source": ["41", 0],
-            "mask": ["40", 0]
-        },
-        "class_type": "ImageCompositeMasked",
-        "_meta": {"title": "ImageCompositeMasked"}
-    },
-    "36": {
-        "inputs": {
-            "device": "cuda:0",
-            "image": ["38", 0]
-        },
-        "class_type": "BiRefNet",
-        "_meta": {"title": "BiRefNet Segmentation"}
-    },
-    "37": {
-        "inputs": {
-            "mask": ["39", 0]
-        },
-        "class_type": "InvertMask",
-        "_meta": {"title": "InvertMask"}
-    },
-    "38": {
-        "inputs": {
-            "image": ["11", 0]
-        },
-        "class_type": "ImpactImageBatchToImageList",
-        "_meta": {"title": "Image batch to Image List"}
-    },
-    "39": {
-        "inputs": {
-            "mask": ["36", 0]
-        },
-        "class_type": "MaskListToMaskBatch",
-        "_meta": {"title": "Mask List to Masks"}
-    },
-    "40": {
-        "inputs": {
-            "expand": 1,
-            "incremental_expandrate": 0,
-            "tapered_corners": True,
-            "flip_input": False,
-            "blur_radius": 0.1,
-            "lerp_alpha": 1,
-            "decay_factor": 1,
-            "fill_holes": False,
-            "mask": ["37", 0]
-        },
-        "class_type": "GrowMaskWithBlur",
-        "_meta": {"title": "GrowMaskWithBlur"}
-    },
-    "41": {
-        "inputs": {
-            "mask_threshold": 250,
-            "gaussblur_radius": 8,
-            "invert_mask": False,
-            "images": ["16", 0],
-            "masks": ["21", 0]
-        },
-        "class_type": "LamaRemover",
-        "_meta": {"title": "Big lama Remover"}
-    },
-    "42": {
-        "inputs": {
-            "images": ["41", 0]
-        },
-        "class_type": "PreviewImage",
-        "_meta": {"title": "Preview Image"}
-    },
-    "43": {
-        "inputs": {
-            "vae_name": "1.5\\vae-ft-mse-840000-ema-pruned.safetensors"
-        },
-        "class_type": "VAELoader",
-        "_meta": {"title": "Load VAE"}
-    },
-    "44": {
-        "inputs": {
-            "enabled": True,
-            "swap_model": "inswapper_128.onnx",
-            "facedetection": "retinaface_resnet50",
-            "face_restore_model": "codeformer-v0.1.0.pth",
-            "face_restore_visibility": 1,
-            "codeformer_weight": 0.5,
-            "detect_gender_input": "female",
-            "detect_gender_source": "female",
-            "input_faces_index": "0",
-            "source_faces_index": "0",
-            "console_log_level": 1,
-            "input_image": ["35", 0],
-            "source_image": ["73", 0]
-        },
-        "class_type": "ReActorFaceSwap",
-        "_meta": {"title": "ReActor - Fast Face Swap"}
-    },
-    "45": {
-        "inputs": {
-            "frame_rate": 8,
-            "loop_count": 0,
-            "filename_prefix": "ComfyUI_swap",
-            "format": "video/h264-mp4",
-            "pix_fmt": "yuv420p",
-            "crf": 19,
-            "save_metadata": False,
-            "pingpong": False,
-            "save_output": False,
-            "images": ["44", 0],
-            "audio": ["12", 2]
-        },
-        "class_type": "VHS_VideoCombine",
-        "_meta": {"title": "Video Combine 🎥🆕🆗🆂"}
-    },
-    "46": {
-        "inputs": {
-            "image_gen_width": ["48", 0],
-            "image_gen_height": ["48", 1],
-            "resize_mode": "Just Resize",
-            "original_image": ["47", 0]
-        },
-        "class_type": "PixelPerfectResolution",
-        "_meta": {"title": "Pixel Perfect Resolution"}
-    },
-    "47": {
-        "inputs": {
-            "upscale_method": "lanczos",
-            "megapixels": 0.26,
-            "image": ["12", 0]
-        },
-        "class_type": "ImageScaleToTotalPixels",
-        "_meta": {"title": "ImageScaleToTotalPixels"}
-    },
-    "48": {
-        "inputs": {
-            "image": ["47", 0]
-        },
-        "class_type": "GetImageSize+",
-        "_meta": {"title": "🔧 Get Image Size"}
-    },
-    "51": {
-        "inputs": {
-            "ckpt_name": "photonLCM_v10.safetensors"
-        },
-        "class_type": "CheckpointLoaderSimple",
-        "_meta": {"title": "Load Checkpoint"}
-    },
-    "52": {
-        "inputs": {
-            "seed": 0,
-            "steps": 30,
-            "cfg": 3,
-            "sampler_name": "dpmpp_2m",
-            "scheduler": "karras",
-            "denoise": 1,
-            "model": ["67", 0],
-            "positive": ["77", 0],
-            "negative": ["77", 1],
-            "latent_image": ["54", 0]
-        },
-        "class_type": "KSampler",
-        "_meta": {"title": "KSampler"}
-    },
-    "53": {
-        "inputs": {
-            "ckpt_name": "albedobaseXL_v21.safetensors"
-        },
-        "class_type": "CheckpointLoaderSimple",
-        "_meta": {"title": "Load Checkpoint"}
-    },
-    "54": {
-        "inputs": {
-            "width": ["72", 0],
-            "height": ["72", 1],
-            "batch_size": 1
-        },
-        "class_type": "EmptyLatentImage",
-        "_meta": {"title": "Empty Latent Image"}
-    },
-    "55": {
-        "inputs": {
-            "text": args.positive_prompt,  # positive_prompt 인자
-            "clip": ["53", 1]
-        },
-        "class_type": "CLIPTextEncode",
-        "_meta": {"title": "CLIP Text Encode (Prompt)"}
-    },
-    "56": {
-        "inputs": {
-            "text": args.negative_prompt,  # negative_prompt 인자
-            "clip": ["53", 1]
-        },
-        "class_type": "CLIPTextEncode",
-        "_meta": {"title": "CLIP Text Encode (Prompt)"}
-    },
-    "57": {
-        "inputs": {
-            "samples": ["52", 0],
-            "vae": ["53", 2]
-        },
-        "class_type": "VAEDecode",
-        "_meta": {"title": "VAE Decode"}
-    },
-    "58": {
-        "inputs": {
-            "crop_padding_factor": 0.25,
-            "cascade_xml": "lbpcascade_animeface.xml",
-            "image": ["59", 0]
-        },
-        "class_type": "Image Crop Face",
-        "_meta": {"title": "Image Crop Face"}
-    },
-    "59": {
-        "inputs": {
-            "image": args.ref_image,  # 참조 인물 이미지 경로
-            "upload": "image"
-        },
-        "class_type": "LoadImage",
-        "_meta": {"title": "Load Image"}
-    },
-    "60": {
-        "inputs": {
-            "instantid_file": "ip-adapter.bin"
-        },
-        "class_type": "InstantIDModelLoader",
-        "_meta": {"title": "Load InstantID Model"}
-    },
-    "61": {
-        "inputs": {
-            "provider": "CUDA"
-        },
-        "class_type": "InstantIDFaceAnalysis",
-        "_meta": {"title": "InstantID Face Analysis"}
-    },
-    "62": {
-        "inputs": {
-            "control_net_name": "InstantID IdentityNet.safetensors"
-        },
-        "class_type": "ControlNetLoader",
-        "_meta": {"title": "Load ControlNet Model"}
-    },
-    "63": {
-        "inputs": {
-            "width": 1024,
-            "height": 1024,
-            "interpolation": "lanczos",
-            "keep_proportion": False,
-            "condition": "always",
-            "multiple_of": 0,
-            "image": ["58", 0]
-        },
-        "class_type": "ImageResize+",
-        "_meta": {"title": "🔧 Image Resize"}
-    },
-    "64": {
-        "inputs": {
-            "weight": 0.3,
-            "weight_type": "linear",
-            "combine_embeds": "concat",
-            "start_at": 0,
-            "end_at": 1,
-            "embeds_scaling": "V only",
-            "model": ["71", 0],
-            "ipadapter": ["66", 0],
-            "image": ["63", 0],
-            "clip_vision": ["65", 0]
-        },
-        "class_type": "IPAdapterAdvanced",
-        "_meta": {"title": "IPAdapter Advanced"}
-    },
-    "65": {
-        "inputs": {
-            "clip_name": "IPAdapter image_encoder_sd15.safetensors"
-        },
-        "class_type": "CLIPVisionLoader",
-        "_meta": {"title": "Load CLIP Vision"}
-    },
-    "66": {
-        "inputs": {
-            "ipadapter_file": "ip-adapter-plus-face_sdxl_vit-h.safetensors"
-        },
-        "class_type": "IPAdapterModelLoader",
-        "_meta": {"title": "IPAdapter Model Loader"}
-    },
-    "67": {
-        "inputs": {
-            "multiplier": 0.7,
-            "model": ["64", 0]
-        },
-        "class_type": "RescaleCFG",
-        "_meta": {"title": "RescaleCFG"}
-    },
-    "68": {
-        "inputs": {
-            "faceanalysis": ["61", 0],
-            "image": ["75", 0]
-        },
-        "class_type": "FaceKeypointsPreprocessor",
-        "_meta": {"title": "Face Keypoints Preprocessor"}
-    },
-    "69": {
-        "inputs": {
-            "images": ["68", 0]
-        },
-        "class_type": "PreviewImage",
-        "_meta": {"title": "Preview Image"}
-    },
-    "71": {
-        "inputs": {
-            "weight": 0.6,
-            "start_at": 0,
-            "end_at": 1,
-            "instantid": ["60", 0],
-            "insightface": ["61", 0],
-            "control_net": ["62", 0],
-            "image": ["63", 0],
-            "model": ["53", 0],
-            "positive": ["55", 0],
-            "negative": ["56", 0],
-            "image_kps": ["68", 0]
-        },
-        "class_type": "ApplyInstantID",
-        "_meta": {"title": "Apply InstantID"}
-    },
-    "72": {
-        "inputs": {
-            "image": ["59", 0]
-        },
-        "class_type": "Get image size",
-        "_meta": {"title": "Get image size"}
-    },
-    "73": {
-        "inputs": {
-            "enabled": True,
-            "swap_model": "inswapper_128.onnx",
-            "facedetection": "retinaface_resnet50",
-            "face_restore_model": "codeformer-v0.1.0.pth",
-            "face_restore_visibility": 1,
-            "codeformer_weight": 0.5,
-            "detect_gender_input": "no",
-            "detect_gender_source": "no",
-            "input_faces_index": "0",
-            "source_faces_index": "0",
-            "console_log_level": 1,
-            "input_image": ["57", 0],
-            "source_image": ["59", 0]
-        },
-        "class_type": "ReActorFaceSwap",
-        "_meta": {"title": "ReActor - Fast Face Swap"}
-    },
-    "75": {
-        "inputs": {
-            "image": "man_full_shot_origin.jpeg",
-            "upload": "image"
-        },
-        "class_type": "LoadImage",
-        "_meta": {"title": "Load Image"}
-    },
-    "76": {
-        "inputs": {
-            "detect_hand": "enable",
-            "detect_body": "enable",
-            "detect_face": "enable",
-            "resolution": ["72", 0],
-            "bbox_detector": "yolox_l.onnx",
-            "pose_estimator": "dw-ll_ucoco_384_bs5.torchscript.pt",
-            "image": ["75", 0]
-        },
-        "class_type": "DWPreprocessor",
-        "_meta": {"title": "DWPose Estimator"}
-    },
-    "77": {
-        "inputs": {
-            "strength": 0.3,
-            "start_percent": 0,
-            "end_percent": 1,
-            "positive": ["71", 1],
-            "negative": ["71", 2],
-            "control_net": ["78", 0],
-            "image": ["76", 0]
-        },
-        "class_type": "ControlNetApplyAdvanced",
-        "_meta": {"title": "Apply ControlNet (Advanced)"}
-    },
-    "78": {
-        "inputs": {
-            "control_net_name": "controlnet_openposeXL_sdxl.safetensors"
-        },
-        "class_type": "ControlNetLoader",
-        "_meta": {"title": "Load ControlNet Model"}
-    },
-    "79": {
-        "inputs": {
-            "frame_rate": 8,
-            "loop_count": 0,
-            "filename_prefix": "ComfyUI_swap",
-            "format": "video/h264-mp4",
-            "pix_fmt": "yuv420p",
-            "crf": 19,
-            "save_metadata": False,
-            "pingpong": False,
-            "save_output": True,
-            "images": ["44", 0],
-            "audio": ["12", 2]
-        },
-        "class_type": "VHS_VideoCombine",
-        "_meta": {"title": "Video Combine 🎥🆕🆗🆂"}
-    }
-}
+PROMPT_DATA = json.loads(
+    '{"10": {"inputs": {"diffusion_dtype": "auto", "vae_dtype": "auto", "model": ["127", 0], "vae": ["97", 0]}, "class_type": "champ_model_loader", "_meta": {"title": "champ_model_loader"}}, "12": {"inputs": {"width": ["108", 0], "height": ["108", 1], "steps": 36, "guidance_scale": 2, "frames": ["15", 1], "seed": 0, "keep_model_loaded": true, "scheduler": "DDPMScheduler", "champ_model": ["10", 0], "champ_vae": ["10", 1], "champ_encoder": ["10", 2], "image": ["20", 0], "depth_tensors": ["63", 0], "normal_tensors": ["59", 0], "semantic_tensors": ["66", 0], "dwpose_tensors": ["18", 0]}, "class_type": "champ_sampler", "_meta": {"title": "champ_sampler"}}, "15": {"inputs": {"video": "motion.mp4", "force_rate": 8, "force_size": "Disabled", "custom_width": 1024, "custom_height": 1024, "frame_load_cap": 16, "skip_first_frames": 0, "select_every_nth": 1}, "class_type": "VHS_LoadVideo", "_meta": {"title": "Load Video (Upload) \\ud83c\\udfa5\\ud83c\\udd65\\ud83c\\udd57\\ud83c\\udd62"}}, "18": {"inputs": {"detect_hand": "enable", "detect_body": "enable", "detect_face": "enable", "resolution": ["22", 0], "bbox_detector": "yolox_l.onnx", "pose_estimator": "dw-ll_ucoco_384_bs5.torchscript.pt", "image": ["23", 0]}, "class_type": "DWPreprocessor", "_meta": {"title": "DWPose Estimator"}}, "20": {"inputs": {"width": ["108", 0], "height": ["108", 1], "interpolation": "lanczos", "keep_proportion": true, "condition": "always", "multiple_of": 64, "image": ["233", 0]}, "class_type": "ImageResize+", "_meta": {"title": "\\ud83d\\udd27 Image Resize"}}, "22": {"inputs": {"image_gen_width": ["108", 0], "image_gen_height": ["108", 1], "resize_mode": "Resize and Fill", "original_image": ["23", 0]}, "class_type": "PixelPerfectResolution", "_meta": {"title": "Pixel Perfect Resolution"}}, "23": {"inputs": {"width": ["108", 0], "height": ["108", 1], "interpolation": "lanczos", "keep_proportion": false, "condition": "always", "multiple_of": 64, "image": ["15", 0]}, "class_type": "ImageResize+", "_meta": {"title": "\\ud83d\\udd27 Image Resize"}}, "28": {"inputs": {"width": ["108", 1], "height": ["108", 1], "batch_size": 1, "color": 0}, "class_type": "EmptyImage", "_meta": {"title": "EmptyImage"}}, "56": {"inputs": {"fov": 60, "iterations": 5, "resolution": ["103", 0], "image": ["23", 0]}, "class_type": "DSINE-NormalMapPreprocessor", "_meta": {"title": "DSINE Normal Map"}}, "59": {"inputs": {"x": 0, "y": 0, "resize_source": true, "destination": ["56", 0], "source": ["28", 0]}, "class_type": "ImageCompositeMasked", "_meta": {"title": "ImageCompositeMasked"}}, "62": {"inputs": {"ckpt_name": "depth_anything_vitl14.pth", "resolution": ["103", 0], "image": ["23", 0]}, "class_type": "DepthAnythingPreprocessor", "_meta": {"title": "Depth Anything"}}, "63": {"inputs": {"x": 0, "y": 0, "resize_source": true, "destination": ["62", 0], "source": ["28", 0]}, "class_type": "ImageCompositeMasked", "_meta": {"title": "ImageCompositeMasked"}}, "65": {"inputs": {"model": "densepose_r101_fpn_dl.torchscript", "cmap": "Viridis (MagicAnimate)", "resolution": ["103", 0], "image": ["23", 0]}, "class_type": "DensePosePreprocessor", "_meta": {"title": "DensePose Estimator"}}, "66": {"inputs": {"x": 0, "y": 0, "resize_source": true, "destination": ["65", 0], "source": ["28", 0]}, "class_type": "ImageCompositeMasked", "_meta": {"title": "ImageCompositeMasked"}}, "97": {"inputs": {"vae_name": "1.5\\\\vae-ft-mse-840000-ema-pruned.safetensors"}, "class_type": "VAELoader", "_meta": {"title": "Load VAE"}}, "101": {"inputs": {"enabled": true, "swap_model": "inswapper_128.onnx", "facedetection": "retinaface_resnet50", "face_restore_model": "codeformer-v0.1.0.pth", "face_restore_visibility": 1, "codeformer_weight": 0.5, "detect_gender_input": "female", "detect_gender_source": "female", "input_faces_index": "0", "source_faces_index": "0", "console_log_level": 1, "input_image": ["12", 0], "source_image": ["233", 0]}, "class_type": "ReActorFaceSwap", "_meta": {"title": "ReActor - Fast Face Swap"}}, "102": {"inputs": {"frame_rate": 8, "loop_count": 0, "filename_prefix": "ComfyUI_swap", "format": "video/h264-mp4", "pix_fmt": "yuv420p", "crf": 19, "save_metadata": false, "pingpong": false, "save_output": false, "images": ["101", 0], "audio": ["15", 2]}, "class_type": "VHS_VideoCombine", "_meta": {"title": "Video Combine \\ud83c\\udfa5\\ud83c\\udd65\\ud83c\\udd57\\ud83c\\udd62"}}, "103": {"inputs": {"image_gen_width": ["108", 0], "image_gen_height": ["108", 1], "resize_mode": "Just Resize", "original_image": ["107", 0]}, "class_type": "PixelPerfectResolution", "_meta": {"title": "Pixel Perfect Resolution"}}, "107": {"inputs": {"upscale_method": "lanczos", "megapixels": 0.26, "image": ["15", 0]}, "class_type": "ImageScaleToTotalPixels", "_meta": {"title": "ImageScaleToTotalPixels"}}, "108": {"inputs": {"image": ["107", 0]}, "class_type": "GetImageSize+", "_meta": {"title": "\\ud83d\\udd27 Get Image Size"}}, "127": {"inputs": {"ckpt_name": "photonLCM_v10.safetensors"}, "class_type": "CheckpointLoaderSimple", "_meta": {"title": "Load Checkpoint"}}, "142": {"inputs": {"seed": 0, "steps": 30, "cfg": 3, "sampler_name": "dpmpp_2m", "scheduler": "karras", "denoise": 1, "model": ["203", 0], "positive": ["311", 0], "negative": ["311", 1], "latent_image": ["144", 0]}, "class_type": "KSampler", "_meta": {"title": "KSampler"}}, "143": {"inputs": {"ckpt_name": "albedobaseXL_v21.safetensors"}, "class_type": "CheckpointLoaderSimple", "_meta": {"title": "Load Checkpoint"}}, "144": {"inputs": {"width": ["227", 0], "height": ["227", 1], "batch_size": 1}, "class_type": "EmptyLatentImage", "_meta": {"title": "Empty Latent Image"}}, "145": {"inputs": {"text": "yellow hair, black jacket, sports clothes, walking on a sidewalk, full body, (looking_at_viewer:1.2), smiling, cityscape background, night, (8k, RAW photo, best quality, masterpiece:1.2), (realistic, photo-realistic:1.37), professional lighting, photon mapping, physically-based rendering, octane render, perfect anatomy, realistic hands", "clip": ["143", 1]}, "class_type": "CLIPTextEncode", "_meta": {"title": "CLIP Text Encode (Prompt)"}}, "146": {"inputs": {"text": "contortionist, amputee, polydactyly, deformed, distorted, misshapen, malformed, abnormal, mutant, defaced, shapeless\\n(worst quality:2), (low quality:2), (normal quality:2), normal quality, ((monochrome)), ((grayscale)), skin spots, acnes, skin blemishes, age spot, glans, sketches, drawing, painting, (watermark, username, signature, text:1.3),((bad anatomy, bad proportions)), blurry, cloned face, cropped, ((deformed)), dehydrated, disfigured, (duplicate, morbid:2), error, extra arms, extra fingers, extra legs, extra limbs, fused fingers, gross proportions, jpeg artifacts, long neck, low quality, malformed limbs, missing arms, missing legs, mutated hands, mutation, mutilated, out of frame, poorly drawn face, poorly drawn hands, signature, text, ugly, username, watermark, worst quality, fused fingers, too many fingers, extra fingers", "clip": ["143", 1]}, "class_type": "CLIPTextEncode", "_meta": {"title": "CLIP Text Encode (Prompt)"}}, "147": {"inputs": {"samples": ["142", 0], "vae": ["143", 2]}, "class_type": "VAEDecode", "_meta": {"title": "VAE Decode"}}, "149": {"inputs": {"crop_padding_factor": 0.25, "cascade_xml": "lbpcascade_animeface.xml", "image": ["150", 0]}, "class_type": "Image Crop Face", "_meta": {"title": "Image Crop Face"}}, "150": {"inputs": {"image": "PEB6 (2).jpeg", "upload": "image"}, "class_type": "LoadImage", "_meta": {"title": "Load Image"}}, "153": {"inputs": {"instantid_file": "ip-adapter.bin"}, "class_type": "InstantIDModelLoader", "_meta": {"title": "Load InstantID Model"}}, "154": {"inputs": {"provider": "CUDA"}, "class_type": "InstantIDFaceAnalysis", "_meta": {"title": "InstantID Face Analysis"}}, "155": {"inputs": {"control_net_name": "InstantID IdentityNet.safetensors"}, "class_type": "ControlNetLoader", "_meta": {"title": "Load ControlNet Model"}}, "156": {"inputs": {"width": 1024, "height": 1024, "interpolation": "lanczos", "keep_proportion": false, "condition": "always", "multiple_of": 0, "image": ["149", 0]}, "class_type": "ImageResize+", "_meta": {"title": "\\ud83d\\udd27 Image Resize"}}, "194": {"inputs": {"weight": 0.3, "weight_type": "linear", "combine_embeds": "concat", "start_at": 0, "end_at": 1, "embeds_scaling": "V only", "model": ["224", 0], "ipadapter": ["197", 0], "image": ["156", 0], "clip_vision": ["195", 0]}, "class_type": "IPAdapterAdvanced", "_meta": {"title": "IPAdapter Advanced"}}, "195": {"inputs": {"clip_name": "IPAdapter image_encoder_sd15.safetensors"}, "class_type": "CLIPVisionLoader", "_meta": {"title": "Load CLIP Vision"}}, "197": {"inputs": {"ipadapter_file": "ip-adapter-plus-face_sdxl_vit-h.safetensors"}, "class_type": "IPAdapterModelLoader", "_meta": {"title": "IPAdapter Model Loader"}}, "203": {"inputs": {"multiplier": 0.7, "model": ["194", 0]}, "class_type": "RescaleCFG", "_meta": {"title": "RescaleCFG"}}, "215": {"inputs": {"faceanalysis": ["154", 0], "image": ["293", 0]}, "class_type": "FaceKeypointsPreprocessor", "_meta": {"title": "Face Keypoints Preprocessor"}}, "216": {"inputs": {"images": ["215", 0]}, "class_type": "PreviewImage", "_meta": {"title": "Preview Image"}}, "224": {"inputs": {"weight": 0.6, "start_at": 0, "end_at": 1, "instantid": ["153", 0], "insightface": ["154", 0], "control_net": ["155", 0], "image": ["156", 0], "model": ["143", 0], "positive": ["145", 0], "negative": ["146", 0], "image_kps": ["215", 0]}, "class_type": "ApplyInstantID", "_meta": {"title": "Apply InstantID"}}, "227": {"inputs": {"image": ["150", 0]}, "class_type": "Get image size", "_meta": {"title": "Get image size"}}, "233": {"inputs": {"enabled": true, "swap_model": "inswapper_128.onnx", "facedetection": "retinaface_resnet50", "face_restore_model": "codeformer-v0.1.0.pth", "face_restore_visibility": 1, "codeformer_weight": 0.5, "detect_gender_input": "no", "detect_gender_source": "no", "input_faces_index": "0", "source_faces_index": "0", "console_log_level": 1, "input_image": ["147", 0], "source_image": ["150", 0]}, "class_type": "ReActorFaceSwap", "_meta": {"title": "ReActor - Fast Face Swap"}}, "293": {"inputs": {"image": "man_full_shot_origin.jpeg", "upload": "image"}, "class_type": "LoadImage", "_meta": {"title": "Load Image"}}, "307": {"inputs": {"detect_hand": "enable", "detect_body": "enable", "detect_face": "enable", "resolution": ["227", 0], "bbox_detector": "yolox_l.onnx", "pose_estimator": "dw-ll_ucoco_384_bs5.torchscript.pt", "image": ["293", 0]}, "class_type": "DWPreprocessor", "_meta": {"title": "DWPose Estimator"}}, "311": {"inputs": {"strength": 0.3, "start_percent": 0, "end_percent": 1, "positive": ["224", 1], "negative": ["224", 2], "control_net": ["312", 0], "image": ["307", 0]}, "class_type": "ControlNetApplyAdvanced", "_meta": {"title": "Apply ControlNet (Advanced)"}}, "312": {"inputs": {"control_net_name": "controlnet_openposeXL_sdxl.safetensors"}, "class_type": "ControlNetLoader", "_meta": {"title": "Load ControlNet Model"}}}'
+)
 
 
 def import_custom_nodes() -> None:
@@ -1037,7 +361,7 @@ def main(*func_args, **func_kwargs):
     else:
         defaults = dict(
             (arg, parser.get_default(arg))
-            for arg in ["queue_size", "comfyui_directory", "output", "disable_metadata", "video", "frame_load_cap", "positive_prompt", "negative_prompt", "ref_image"]
+            for arg in ["queue_size", "comfyui_directory", "output", "disable_metadata"]
         )
         ordered_args = dict(zip([], func_args))
 
@@ -1064,73 +388,73 @@ def main(*func_args, **func_kwargs):
 
     with torch.inference_mode(), ctx:
         vhs_loadvideo = NODE_CLASS_MAPPINGS["VHS_LoadVideo"]()
-        vhs_loadvideo_12 = vhs_loadvideo.load_video(
-            video=args.video,  # 소스 모션 비디오 경로
+        vhs_loadvideo_15 = vhs_loadvideo.load_video(
+            video=args.source_video,
             force_rate=8,
             force_size="Disabled",
             custom_width=1024,
             custom_height=1024,
-            frame_load_cap=args.frame_load_cap,  # 비디오의 처음부터 사용할 프레임 수
+            frame_load_cap=args.frame_load_cap,
             skip_first_frames=0,
             select_every_nth=1,
         )
 
         vaeloader = NODE_CLASS_MAPPINGS["VAELoader"]()
-        vaeloader_43 = vaeloader.load_vae(
+        vaeloader_97 = vaeloader.load_vae(
             vae_name="1.5\\vae-ft-mse-840000-ema-pruned.safetensors"
         )
 
         checkpointloadersimple = NODE_CLASS_MAPPINGS["CheckpointLoaderSimple"]()
-        checkpointloadersimple_51 = checkpointloadersimple.load_checkpoint(
+        checkpointloadersimple_127 = checkpointloadersimple.load_checkpoint(
             ckpt_name="photonLCM_v10.safetensors"
         )
 
-        checkpointloadersimple_53 = checkpointloadersimple.load_checkpoint(
+        checkpointloadersimple_143 = checkpointloadersimple.load_checkpoint(
             ckpt_name="albedobaseXL_v21.safetensors"
         )
 
         cliptextencode = NODE_CLASS_MAPPINGS["CLIPTextEncode"]()
-        cliptextencode_55 = cliptextencode.encode(
-            text=args.positive_prompt,  # positive_prompt 인자
-            clip=get_value_at_index(checkpointloadersimple_53, 1)
+        cliptextencode_145 = cliptextencode.encode(
+            text=args.positive_prompt,
+            clip=get_value_at_index(checkpointloadersimple_143, 1),
         )
 
-        cliptextencode_56 = cliptextencode.encode(
-            text=args.negative_prompt,  # negative_prompt 인자
-            clip=get_value_at_index(checkpointloadersimple_53, 1)
+        cliptextencode_146 = cliptextencode.encode(
+            text=args.negative_prompt,
+            clip=get_value_at_index(checkpointloadersimple_143, 1),
         )
 
         loadimage = NODE_CLASS_MAPPINGS["LoadImage"]()
-        loadimage_59 = loadimage.load_image(image=args.ref_image)  # 참조 인물 이미지 경로
+        loadimage_150 = loadimage.load_image(image=args.ref_image)
 
         instantidmodelloader = NODE_CLASS_MAPPINGS["InstantIDModelLoader"]()
-        instantidmodelloader_60 = instantidmodelloader.load_model(
+        instantidmodelloader_153 = instantidmodelloader.load_model(
             instantid_file="ip-adapter.bin"
         )
 
         instantidfaceanalysis = NODE_CLASS_MAPPINGS["InstantIDFaceAnalysis"]()
-        instantidfaceanalysis_61 = instantidfaceanalysis.load_insight_face(
+        instantidfaceanalysis_154 = instantidfaceanalysis.load_insight_face(
             provider="CUDA"
         )
 
         controlnetloader = NODE_CLASS_MAPPINGS["ControlNetLoader"]()
-        controlnetloader_62 = controlnetloader.load_controlnet(
+        controlnetloader_155 = controlnetloader.load_controlnet(
             control_net_name="InstantID IdentityNet.safetensors"
         )
 
         clipvisionloader = NODE_CLASS_MAPPINGS["CLIPVisionLoader"]()
-        clipvisionloader_65 = clipvisionloader.load_clip(
+        clipvisionloader_195 = clipvisionloader.load_clip(
             clip_name="IPAdapter image_encoder_sd15.safetensors"
         )
 
         ipadaptermodelloader = NODE_CLASS_MAPPINGS["IPAdapterModelLoader"]()
-        ipadaptermodelloader_66 = ipadaptermodelloader.load_ipadapter_model(
+        ipadaptermodelloader_197 = ipadaptermodelloader.load_ipadapter_model(
             ipadapter_file="ip-adapter-plus-face_sdxl_vit-h.safetensors"
         )
 
-        loadimage_75 = loadimage.load_image(image="man_full_shot_origin.jpeg")
+        loadimage_293 = loadimage.load_image(image="man_full_shot_origin.jpeg")
 
-        controlnetloader_78 = controlnetloader.load_controlnet(
+        controlnetloader_312 = controlnetloader.load_controlnet(
             control_net_name="controlnet_openposeXL_sdxl.safetensors"
         )
 
@@ -1151,142 +475,134 @@ def main(*func_args, **func_kwargs):
         vaedecode = NODE_CLASS_MAPPINGS["VAEDecode"]()
         reactorfaceswap = NODE_CLASS_MAPPINGS["ReActorFaceSwap"]()
         pixelperfectresolution = NODE_CLASS_MAPPINGS["PixelPerfectResolution"]()
-        emptyimage = NODE_CLASS_MAPPINGS["EmptyImage"]()
-        impactimagebatchtoimagelist = NODE_CLASS_MAPPINGS[
-            "ImpactImageBatchToImageList"
-        ]()
-        birefnet = NODE_CLASS_MAPPINGS["BiRefNet"]()
-        masklisttomaskbatch = NODE_CLASS_MAPPINGS["MaskListToMaskBatch"]()
-        invertmask = NODE_CLASS_MAPPINGS["InvertMask"]()
-        imagecompositemasked = NODE_CLASS_MAPPINGS["ImageCompositeMasked"]()
         depthanythingpreprocessor = NODE_CLASS_MAPPINGS["DepthAnythingPreprocessor"]()
+        emptyimage = NODE_CLASS_MAPPINGS["EmptyImage"]()
+        imagecompositemasked = NODE_CLASS_MAPPINGS["ImageCompositeMasked"]()
         dsine_normalmappreprocessor = NODE_CLASS_MAPPINGS[
             "DSINE-NormalMapPreprocessor"
         ]()
         denseposepreprocessor = NODE_CLASS_MAPPINGS["DensePosePreprocessor"]()
         champ_sampler = NODE_CLASS_MAPPINGS["champ_sampler"]()
-        growmaskwithblur = NODE_CLASS_MAPPINGS["GrowMaskWithBlur"]()
-        lamaremover = NODE_CLASS_MAPPINGS["LamaRemover"]()
         vhs_videocombine = NODE_CLASS_MAPPINGS["VHS_VideoCombine"]()
         for q in range(args.queue_size):
             champ_model_loader_10 = champ_model_loader.loadmodel(
                 diffusion_dtype="auto",
                 vae_dtype="auto",
-                model=get_value_at_index(checkpointloadersimple_51, 0),
-                vae=get_value_at_index(vaeloader_43, 0),
+                model=get_value_at_index(checkpointloadersimple_127, 0),
+                vae=get_value_at_index(vaeloader_97, 0),
             )
 
-            imagescaletototalpixels_47 = imagescaletototalpixels.upscale(
+            imagescaletototalpixels_107 = imagescaletototalpixels.upscale(
                 upscale_method="lanczos",
                 megapixels=0.26,
-                image=get_value_at_index(vhs_loadvideo_12, 0),
+                image=get_value_at_index(vhs_loadvideo_15, 0),
             )
 
-            getimagesize_48 = getimagesize.execute(
-                image=get_value_at_index(imagescaletototalpixels_47, 0)
+            getimagesize_108 = getimagesize.execute(
+                image=get_value_at_index(imagescaletototalpixels_107, 0)
             )
 
-            image_crop_face_58 = image_crop_face.image_crop_face(
+            image_crop_face_149 = image_crop_face.image_crop_face(
                 crop_padding_factor=0.25,
                 cascade_xml="lbpcascade_animeface.xml",
-                image=get_value_at_index(loadimage_59, 0),
+                image=get_value_at_index(loadimage_150, 0),
             )
 
-            imageresize_63 = imageresize.execute(
+            imageresize_156 = imageresize.execute(
                 width=1024,
                 height=1024,
                 interpolation="lanczos",
                 keep_proportion=False,
                 condition="always",
                 multiple_of=0,
-                image=get_value_at_index(image_crop_face_58, 0),
+                image=get_value_at_index(image_crop_face_149, 0),
             )
 
-            facekeypointspreprocessor_68 = facekeypointspreprocessor.preprocess_image(
-                faceanalysis=get_value_at_index(instantidfaceanalysis_61, 0),
-                image=get_value_at_index(loadimage_75, 0),
+            facekeypointspreprocessor_215 = facekeypointspreprocessor.preprocess_image(
+                faceanalysis=get_value_at_index(instantidfaceanalysis_154, 0),
+                image=get_value_at_index(loadimage_293, 0),
             )
 
-            applyinstantid_71 = applyinstantid.apply_instantid(
+            applyinstantid_224 = applyinstantid.apply_instantid(
                 weight=0.6,
                 start_at=0,
                 end_at=1,
-                instantid=get_value_at_index(instantidmodelloader_60, 0),
-                insightface=get_value_at_index(instantidfaceanalysis_61, 0),
-                control_net=get_value_at_index(controlnetloader_62, 0),
-                image=get_value_at_index(imageresize_63, 0),
-                model=get_value_at_index(checkpointloadersimple_53, 0),
-                positive=get_value_at_index(cliptextencode_55, 0),
-                negative=get_value_at_index(cliptextencode_56, 0),
-                image_kps=get_value_at_index(facekeypointspreprocessor_68, 0),
+                instantid=get_value_at_index(instantidmodelloader_153, 0),
+                insightface=get_value_at_index(instantidfaceanalysis_154, 0),
+                control_net=get_value_at_index(controlnetloader_155, 0),
+                image=get_value_at_index(imageresize_156, 0),
+                model=get_value_at_index(checkpointloadersimple_143, 0),
+                positive=get_value_at_index(cliptextencode_145, 0),
+                negative=get_value_at_index(cliptextencode_146, 0),
+                image_kps=get_value_at_index(facekeypointspreprocessor_215, 0),
             )
 
-            ipadapteradvanced_64 = ipadapteradvanced.apply_ipadapter(
+            ipadapteradvanced_194 = ipadapteradvanced.apply_ipadapter(
                 weight=0.3,
                 weight_type="linear",
                 combine_embeds="concat",
                 start_at=0,
                 end_at=1,
                 embeds_scaling="V only",
-                model=get_value_at_index(applyinstantid_71, 0),
-                ipadapter=get_value_at_index(ipadaptermodelloader_66, 0),
-                image=get_value_at_index(imageresize_63, 0),
-                clip_vision=get_value_at_index(clipvisionloader_65, 0),
+                model=get_value_at_index(applyinstantid_224, 0),
+                ipadapter=get_value_at_index(ipadaptermodelloader_197, 0),
+                image=get_value_at_index(imageresize_156, 0),
+                clip_vision=get_value_at_index(clipvisionloader_195, 0),
             )
 
-            rescalecfg_67 = rescalecfg.patch(
-                multiplier=0.7, model=get_value_at_index(ipadapteradvanced_64, 0)
+            rescalecfg_203 = rescalecfg.patch(
+                multiplier=0.7, model=get_value_at_index(ipadapteradvanced_194, 0)
             )
 
-            get_image_size_72 = get_image_size.get_size(
-                image=get_value_at_index(loadimage_59, 0)
+            get_image_size_227 = get_image_size.get_size(
+                image=get_value_at_index(loadimage_150, 0)
             )
 
-            dwpreprocessor_76 = dwpreprocessor.estimate_pose(
+            dwpreprocessor_307 = dwpreprocessor.estimate_pose(
                 detect_hand="enable",
                 detect_body="enable",
                 detect_face="enable",
-                resolution=get_value_at_index(get_image_size_72, 0),
+                resolution=get_value_at_index(get_image_size_227, 0),
                 bbox_detector="yolox_l.onnx",
                 pose_estimator="dw-ll_ucoco_384_bs5.torchscript.pt",
-                image=get_value_at_index(loadimage_75, 0),
+                image=get_value_at_index(loadimage_293, 0),
             )
 
-            controlnetapplyadvanced_77 = controlnetapplyadvanced.apply_controlnet(
+            controlnetapplyadvanced_311 = controlnetapplyadvanced.apply_controlnet(
                 strength=0.3,
                 start_percent=0,
                 end_percent=1,
-                positive=get_value_at_index(applyinstantid_71, 1),
-                negative=get_value_at_index(applyinstantid_71, 2),
-                control_net=get_value_at_index(controlnetloader_78, 0),
-                image=get_value_at_index(dwpreprocessor_76, 0),
+                positive=get_value_at_index(applyinstantid_224, 1),
+                negative=get_value_at_index(applyinstantid_224, 2),
+                control_net=get_value_at_index(controlnetloader_312, 0),
+                image=get_value_at_index(dwpreprocessor_307, 0),
             )
 
-            emptylatentimage_54 = emptylatentimage.generate(
-                width=get_value_at_index(get_image_size_72, 0),
-                height=get_value_at_index(get_image_size_72, 1),
+            emptylatentimage_144 = emptylatentimage.generate(
+                width=get_value_at_index(get_image_size_227, 0),
+                height=get_value_at_index(get_image_size_227, 1),
                 batch_size=1,
             )
 
-            ksampler_52 = ksampler.sample(
+            ksampler_142 = ksampler.sample(
                 seed=random.randint(1, 2**64),
                 steps=30,
                 cfg=3,
                 sampler_name="dpmpp_2m",
                 scheduler="karras",
                 denoise=1,
-                model=get_value_at_index(rescalecfg_67, 0),
-                positive=get_value_at_index(controlnetapplyadvanced_77, 0),
-                negative=get_value_at_index(controlnetapplyadvanced_77, 1),
-                latent_image=get_value_at_index(emptylatentimage_54, 0),
+                model=get_value_at_index(rescalecfg_203, 0),
+                positive=get_value_at_index(controlnetapplyadvanced_311, 0),
+                negative=get_value_at_index(controlnetapplyadvanced_311, 1),
+                latent_image=get_value_at_index(emptylatentimage_144, 0),
             )
 
-            vaedecode_57 = vaedecode.decode(
-                samples=get_value_at_index(ksampler_52, 0),
-                vae=get_value_at_index(checkpointloadersimple_53, 2),
+            vaedecode_147 = vaedecode.decode(
+                samples=get_value_at_index(ksampler_142, 0),
+                vae=get_value_at_index(checkpointloadersimple_143, 2),
             )
 
-            reactorfaceswap_73 = reactorfaceswap.execute(
+            reactorfaceswap_233 = reactorfaceswap.execute(
                 enabled=True,
                 swap_model="inswapper_128.onnx",
                 facedetection="retinaface_resnet50",
@@ -1298,240 +614,125 @@ def main(*func_args, **func_kwargs):
                 input_faces_index="0",
                 source_faces_index="0",
                 console_log_level=1,
-                input_image=get_value_at_index(vaedecode_57, 0),
-                source_image=get_value_at_index(loadimage_59, 0),
+                input_image=get_value_at_index(vaedecode_147, 0),
+                source_image=get_value_at_index(loadimage_150, 0),
             )
 
-            imageresize_14 = imageresize.execute(
-                width=get_value_at_index(getimagesize_48, 0),
-                height=get_value_at_index(getimagesize_48, 1),
+            imageresize_20 = imageresize.execute(
+                width=get_value_at_index(getimagesize_108, 0),
+                height=get_value_at_index(getimagesize_108, 1),
                 interpolation="lanczos",
                 keep_proportion=True,
                 condition="always",
                 multiple_of=64,
-                image=get_value_at_index(reactorfaceswap_73, 0),
+                image=get_value_at_index(reactorfaceswap_233, 0),
             )
 
-            pixelperfectresolution_46 = pixelperfectresolution.execute(
-                image_gen_width=get_value_at_index(getimagesize_48, 0),
-                image_gen_height=get_value_at_index(getimagesize_48, 1),
+            pixelperfectresolution_103 = pixelperfectresolution.execute(
+                image_gen_width=get_value_at_index(getimagesize_108, 0),
+                image_gen_height=get_value_at_index(getimagesize_108, 1),
                 resize_mode="Just Resize",
-                original_image=get_value_at_index(imagescaletototalpixels_47, 0),
+                original_image=get_value_at_index(imagescaletototalpixels_107, 0),
             )
 
-            imageresize_16 = imageresize.execute(
-                width=get_value_at_index(getimagesize_48, 0),
-                height=get_value_at_index(getimagesize_48, 1),
+            imageresize_23 = imageresize.execute(
+                width=get_value_at_index(getimagesize_108, 0),
+                height=get_value_at_index(getimagesize_108, 1),
                 interpolation="lanczos",
                 keep_proportion=False,
                 condition="always",
                 multiple_of=64,
-                image=get_value_at_index(vhs_loadvideo_12, 0),
+                image=get_value_at_index(vhs_loadvideo_15, 0),
             )
 
-            emptyimage_20 = emptyimage.generate(
-                width=get_value_at_index(getimagesize_48, 1),
-                height=get_value_at_index(getimagesize_48, 1),
+            depthanythingpreprocessor_62 = depthanythingpreprocessor.execute(
+                ckpt_name="depth_anything_vitl14.pth",
+                resolution=get_value_at_index(pixelperfectresolution_103, 0),
+                image=get_value_at_index(imageresize_23, 0),
+            )
+
+            emptyimage_28 = emptyimage.generate(
+                width=get_value_at_index(getimagesize_108, 1),
+                height=get_value_at_index(getimagesize_108, 1),
                 batch_size=1,
                 color=0,
             )
 
-            impactimagebatchtoimagelist_19 = impactimagebatchtoimagelist.doit(
-                image=get_value_at_index(imageresize_16, 0)
-            )
-
-            birefnet_17 = birefnet.matting(
-                device="auto",
-                image=get_value_at_index(impactimagebatchtoimagelist_19, 0),
-            )
-
-            masklisttomaskbatch_21 = masklisttomaskbatch.doit(
-                mask=get_value_at_index(birefnet_17, 0)
-            )
-
-            invertmask_29 = invertmask.invert(
-                mask=get_value_at_index(masklisttomaskbatch_21, 0)
-            )
-
-            imagecompositemasked_18 = imagecompositemasked.composite(
+            imagecompositemasked_63 = imagecompositemasked.composite(
                 x=0,
                 y=0,
                 resize_source=True,
-                destination=get_value_at_index(imageresize_16, 0),
-                source=get_value_at_index(emptyimage_20, 0),
-                mask=get_value_at_index(invertmask_29, 0),
+                destination=get_value_at_index(depthanythingpreprocessor_62, 0),
+                source=get_value_at_index(emptyimage_28, 0),
             )
 
-            depthanythingpreprocessor_30 = depthanythingpreprocessor.execute(
-                ckpt_name="depth_anything_vitl14.pth",
-                resolution=get_value_at_index(pixelperfectresolution_46, 0),
-                image=get_value_at_index(imagecompositemasked_18, 0),
-            )
-
-            imagecompositemasked_31 = imagecompositemasked.composite(
-                x=0,
-                y=0,
-                resize_source=True,
-                destination=get_value_at_index(depthanythingpreprocessor_30, 0),
-                source=get_value_at_index(emptyimage_20, 0),
-                mask=get_value_at_index(invertmask_29, 0),
-            )
-
-            dsine_normalmappreprocessor_26 = dsine_normalmappreprocessor.execute(
+            dsine_normalmappreprocessor_56 = dsine_normalmappreprocessor.execute(
                 fov=60,
                 iterations=5,
-                resolution=get_value_at_index(pixelperfectresolution_46, 0),
-                image=get_value_at_index(imagecompositemasked_18, 0),
+                resolution=get_value_at_index(pixelperfectresolution_103, 0),
+                image=get_value_at_index(imageresize_23, 0),
             )
 
-            imagecompositemasked_28 = imagecompositemasked.composite(
+            imagecompositemasked_59 = imagecompositemasked.composite(
                 x=0,
                 y=0,
                 resize_source=True,
-                destination=get_value_at_index(dsine_normalmappreprocessor_26, 0),
-                source=get_value_at_index(emptyimage_20, 0),
-                mask=get_value_at_index(invertmask_29, 0),
+                destination=get_value_at_index(dsine_normalmappreprocessor_56, 0),
+                source=get_value_at_index(emptyimage_28, 0),
             )
 
-            denseposepreprocessor_32 = denseposepreprocessor.execute(
+            denseposepreprocessor_65 = denseposepreprocessor.execute(
                 model="densepose_r101_fpn_dl.torchscript",
                 cmap="Viridis (MagicAnimate)",
-                resolution=get_value_at_index(pixelperfectresolution_46, 0),
-                image=get_value_at_index(imagecompositemasked_18, 0),
+                resolution=get_value_at_index(pixelperfectresolution_103, 0),
+                image=get_value_at_index(imageresize_23, 0),
             )
 
-            imagecompositemasked_33 = imagecompositemasked.composite(
+            imagecompositemasked_66 = imagecompositemasked.composite(
                 x=0,
                 y=0,
                 resize_source=True,
-                destination=get_value_at_index(denseposepreprocessor_32, 0),
-                source=get_value_at_index(emptyimage_20, 0),
-                mask=get_value_at_index(invertmask_29, 0),
+                destination=get_value_at_index(denseposepreprocessor_65, 0),
+                source=get_value_at_index(emptyimage_28, 0),
             )
 
-            pixelperfectresolution_15 = pixelperfectresolution.execute(
-                image_gen_width=get_value_at_index(getimagesize_48, 0),
-                image_gen_height=get_value_at_index(getimagesize_48, 1),
+            pixelperfectresolution_22 = pixelperfectresolution.execute(
+                image_gen_width=get_value_at_index(getimagesize_108, 0),
+                image_gen_height=get_value_at_index(getimagesize_108, 1),
                 resize_mode="Resize and Fill",
-                original_image=get_value_at_index(imagecompositemasked_18, 0),
+                original_image=get_value_at_index(imageresize_23, 0),
             )
 
-            dwpreprocessor_13 = dwpreprocessor.estimate_pose(
+            dwpreprocessor_18 = dwpreprocessor.estimate_pose(
                 detect_hand="enable",
                 detect_body="enable",
                 detect_face="enable",
-                resolution=get_value_at_index(pixelperfectresolution_15, 0),
+                resolution=get_value_at_index(pixelperfectresolution_22, 0),
                 bbox_detector="yolox_l.onnx",
                 pose_estimator="dw-ll_ucoco_384_bs5.torchscript.pt",
-                image=get_value_at_index(imagecompositemasked_18, 0),
+                image=get_value_at_index(imageresize_23, 0),
             )
 
-            champ_sampler_11 = champ_sampler.process(
-                width=get_value_at_index(getimagesize_48, 0),
-                height=get_value_at_index(getimagesize_48, 1),
+            champ_sampler_12 = champ_sampler.process(
+                width=get_value_at_index(getimagesize_108, 0),
+                height=get_value_at_index(getimagesize_108, 1),
                 steps=36,
                 guidance_scale=2,
-                frames=get_value_at_index(vhs_loadvideo_12, 1),
+                frames=get_value_at_index(vhs_loadvideo_15, 1),
                 seed=random.randint(1, 2**64),
                 keep_model_loaded=True,
                 scheduler="DDPMScheduler",
                 champ_model=get_value_at_index(champ_model_loader_10, 0),
                 champ_vae=get_value_at_index(champ_model_loader_10, 1),
                 champ_encoder=get_value_at_index(champ_model_loader_10, 2),
-                image=get_value_at_index(imageresize_14, 0),
-                depth_tensors=get_value_at_index(imagecompositemasked_31, 0),
-                normal_tensors=get_value_at_index(imagecompositemasked_28, 0),
-                semantic_tensors=get_value_at_index(imagecompositemasked_33, 0),
-                dwpose_tensors=get_value_at_index(dwpreprocessor_13, 0),
+                image=get_value_at_index(imageresize_20, 0),
+                depth_tensors=get_value_at_index(imagecompositemasked_63, 0),
+                normal_tensors=get_value_at_index(imagecompositemasked_59, 0),
+                semantic_tensors=get_value_at_index(imagecompositemasked_66, 0),
+                dwpose_tensors=get_value_at_index(dwpreprocessor_18, 0),
             )
 
-            emptyimage_24 = emptyimage.generate(
-                width=get_value_at_index(getimagesize_48, 0),
-                height=get_value_at_index(getimagesize_48, 1),
-                batch_size=1,
-                color=0,
-            )
-
-            birefnet_23 = birefnet.matting(
-                device="cuda:0", image=get_value_at_index(reactorfaceswap_73, 0)
-            )
-
-            growmaskwithblur_25 = growmaskwithblur.expand_mask(
-                expand=2,
-                incremental_expandrate=0,
-                tapered_corners=True,
-                flip_input=True,
-                blur_radius=0.2,
-                lerp_alpha=1,
-                decay_factor=1,
-                fill_holes=False,
-                mask=get_value_at_index(birefnet_23, 0),
-            )
-
-            imagecompositemasked_22 = imagecompositemasked.composite(
-                x=0,
-                y=0,
-                resize_source=True,
-                destination=get_value_at_index(imageresize_14, 0),
-                source=get_value_at_index(emptyimage_24, 0),
-                mask=get_value_at_index(growmaskwithblur_25, 0),
-            )
-
-            lamaremover_34 = lamaremover.lama_remover(
-                mask_threshold=250,
-                gaussblur_radius=8,
-                invert_mask=False,
-                images=get_value_at_index(loadimage_59, 0),
-                masks=get_value_at_index(growmaskwithblur_25, 1),
-            )
-
-            lamaremover_41 = lamaremover.lama_remover(
-                mask_threshold=250,
-                gaussblur_radius=8,
-                invert_mask=False,
-                images=get_value_at_index(imageresize_16, 0),
-                masks=get_value_at_index(masklisttomaskbatch_21, 0),
-            )
-
-            impactimagebatchtoimagelist_38 = impactimagebatchtoimagelist.doit(
-                image=get_value_at_index(champ_sampler_11, 0)
-            )
-
-            birefnet_36 = birefnet.matting(
-                device="cuda:0",
-                image=get_value_at_index(impactimagebatchtoimagelist_38, 0),
-            )
-
-            masklisttomaskbatch_39 = masklisttomaskbatch.doit(
-                mask=get_value_at_index(birefnet_36, 0)
-            )
-
-            invertmask_37 = invertmask.invert(
-                mask=get_value_at_index(masklisttomaskbatch_39, 0)
-            )
-
-            growmaskwithblur_40 = growmaskwithblur.expand_mask(
-                expand=1,
-                incremental_expandrate=0,
-                tapered_corners=True,
-                flip_input=False,
-                blur_radius=0.1,
-                lerp_alpha=1,
-                decay_factor=1,
-                fill_holes=False,
-                mask=get_value_at_index(invertmask_37, 0),
-            )
-
-            imagecompositemasked_35 = imagecompositemasked.composite(
-                x=0,
-                y=0,
-                resize_source=True,
-                destination=get_value_at_index(champ_sampler_11, 0),
-                source=get_value_at_index(lamaremover_41, 0),
-                mask=get_value_at_index(growmaskwithblur_40, 0),
-            )
-
-            reactorfaceswap_44 = reactorfaceswap.execute(
+            reactorfaceswap_101 = reactorfaceswap.execute(
                 enabled=True,
                 swap_model="inswapper_128.onnx",
                 facedetection="retinaface_resnet50",
@@ -1543,78 +744,79 @@ def main(*func_args, **func_kwargs):
                 input_faces_index="0",
                 source_faces_index="0",
                 console_log_level=1,
-                input_image=get_value_at_index(imagecompositemasked_35, 0),
-                source_image=get_value_at_index(reactorfaceswap_73, 0),
+                input_image=get_value_at_index(champ_sampler_12, 0),
+                source_image=get_value_at_index(reactorfaceswap_233, 0),
             )
-            
-            # 필요한 경로와 파일 설정
-            output_dir = args.output if args.output else "output.mp4"
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
-            
-            # 터미널에서 확인한 FFmpeg의 경로를 설정
-            ffmpeg_path = "/usr/bin/ffmpeg"  # 실제 경로로 설정
+
+            # vhs_videocombine_102 = vhs_videocombine.combine_video(
+            #     frame_rate=8,
+            #     loop_count=0,
+            #     filename_prefix="ComfyUI_swap",
+            #     format="video/h264-mp4",
+            #     pingpong=False,
+            #     save_output=False,
+            #     images=get_value_at_index(reactorfaceswap_101, 0),
+            #     audio=get_value_at_index(vhs_loadvideo_15, 2),
+            #     unique_id=8408973814857971085,
+            #     prompt=PROMPT_DATA,
+            # )
             
             def tensor_to_bytes(tensor):
                 tensor = tensor.cpu().numpy() * 255
                 return np.clip(tensor, 0, 255).astype(np.uint8)
             
-            def save_video_with_audio(images, audio_data, frame_rate, filename_prefix="output_video", format="h264-mp4"):
-                # 이미지 시퀀스를 저장할 임시 폴더 생성
-                temp_image_dir = os.path.join(output_dir, "temp_images")
-                if not os.path.exists(temp_image_dir):
-                    os.makedirs(temp_image_dir)
-                
-                # 각 프레임 이미지를 PNG 파일로 저장
-                for i, image in enumerate(images):
-                    image = Image.fromarray(tensor_to_bytes(image))
-                    image.save(os.path.join(temp_image_dir, f"frame_{i:05}.png"))
+            def ffmpeg_process(args, video_metadata, file_path):
+                frame_data = yield
+                with subprocess.Popen(args, stderr=subprocess.PIPE, stdin=subprocess.PIPE) as proc:
+                    try:
+                        while frame_data is not None:
+                            proc.stdin.write(frame_data)
+                            frame_data = yield
+                        proc.stdin.flush()
+                        proc.stdin.close()
+                        proc.stderr.read()
+                    except BrokenPipeError:
+                        pass
             
-                # 이미지 시퀀스를 비디오 파일로 변환
-                video_output_path = os.path.join(output_dir, f"{filename_prefix}.mp4")
-                ffmpeg_cmd = [
-                    ffmpeg_path,
-                    "-framerate", str(frame_rate),
-                    "-i", os.path.join(temp_image_dir, "frame_%05d.png"),
-                    "-c:v", "libx264",
-                    "-pix_fmt", "yuv420p",
-                    video_output_path
+            def save_video(frames, frame_rate, output_dir, filename_prefix="output_video"):
+                os.makedirs(output_dir, exist_ok=True)
+            
+                metadata = PngImagePlugin.PngInfo()
+                metadata.add_text("CreationTime", datetime.now().isoformat(" ")[:19])
+            
+                video_metadata = {"CreationTime": datetime.now().isoformat(" ")[:19]}
+            
+                counter = 1
+                file = f"{filename_prefix}_{counter:05}.mp4"
+                file_path = os.path.join(output_dir, file)
+            
+                dimensions = f"{frames[0].shape[1]}x{frames[0].shape[0]}"
+                args = [
+                    "ffmpeg", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
+                    "-s", dimensions, "-r", str(frame_rate), "-i", "-",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", file_path
                 ]
-                subprocess.run(ffmpeg_cmd, check=True)
             
-                # 오디오를 비디오에 추가
-                if audio_data:
-                    audio_path = os.path.join(output_dir, "temp_audio.wav")
-                    with open(audio_path, "wb") as f:
-                        f.write(audio_data)
-                    
-                    final_output_path = os.path.join(output_dir, f"{filename_prefix}_with_audio.mp4")
-                    ffmpeg_cmd_with_audio = [
-                        ffmpeg_path,
-                        "-i", video_output_path,
-                        "-i", audio_path,
-                        "-c:v", "copy",
-                        "-c:a", "aac",
-                        "-shortest",
-                        final_output_path
-                    ]
-                    subprocess.run(ffmpeg_cmd_with_audio, check=True)
-                    os.remove(video_output_path)  # 중간 파일 삭제
-                    os.remove(audio_path)
-                    video_output_path = final_output_path
-                
-                # 임시 이미지 폴더 삭제
-                for file in os.listdir(temp_image_dir):
-                    os.remove(os.path.join(temp_image_dir, file))
-                os.rmdir(temp_image_dir)
+                process = ffmpeg_process(args, video_metadata, file_path)
+                process.send(None)
             
-                print(f"Video saved at: {video_output_path}")
+                for frame in frames:
+                    process.send(tensor_to_bytes(frame).tobytes())
+                try:
+                    process.send(None)
+                except StopIteration:
+                    pass
             
-            # 예제 사용
-            images = get_value_at_index(reactorfaceswap_44, 0)  # 텐서 이미지 시퀀스
-            audio = get_value_at_index(vhs_loadvideo_12, 2)  # 바이너리 오디오 데이터
+                return file_path
             
-            save_video_with_audio(images, audio, frame_rate=8, filename_prefix="ComfyUI_swap", format="h264-mp4")
+            # 예시로 frame들을 생성합니다. 실제로는 입력 프레임들을 여기에 넣어야 합니다.
+            frames = get_value_at_index(reactorfaceswap_101, 0)
+            frame_rate = args.output_frame_rate
+            output_dir = args.output_dir
+            
+            video_path = save_video(frames, frame_rate, output_dir)
+            print(f"Video saved to {video_path}")
+
 
 if __name__ == "__main__":
     main()
