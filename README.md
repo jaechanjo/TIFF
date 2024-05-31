@@ -1,7 +1,5 @@
 # TIFF
 
-**Note: This project is currently under development.**
-
 TIFF: Text-Guided Generation of Full-Body Image with Preserved Reference Face for Customized Animation
 
 Python implementation
