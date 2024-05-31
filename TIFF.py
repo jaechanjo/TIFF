@@ -110,7 +110,7 @@ def import_custom_nodes() -> None:
     init_custom_nodes()
 
 def save_image_wrapper(context, cls):
-    if args.output is None:
+    if args.output_path is None:
         return cls
 
     from PIL import Image, ImageOps, ImageSequence
@@ -124,12 +124,12 @@ def save_image_wrapper(context, cls):
         def save_images(
             self, images, filename_prefix="ComfyUI", prompt=None, extra_pnginfo=None
         ):
-            if args.output is None:
+            if args.output_path is None:
                 return super().save_images(
                     images, filename_prefix, prompt, extra_pnginfo
                 )
             else:
-                if len(images) > 1 and args.output == "-":
+                if len(images) > 1 and args.output_path == "-":
                     raise ValueError("Cannot save multiple images to stdout")
                 filename_prefix += self.prefix_append
 
@@ -146,7 +146,7 @@ def save_image_wrapper(context, cls):
                             for x in extra_pnginfo:
                                 metadata.add_text(x, json.dumps(extra_pnginfo[x]))
 
-                    if args.output == "-":
+                    if args.output_path == "-":
                         # Hack to briefly restore stdout
                         if context is not None:
                             context.__exit__(None, None, None)
@@ -163,19 +163,19 @@ def save_image_wrapper(context, cls):
                     else:
                         subfolder = ""
                         if len(images) == 1:
-                            if os.path.isdir(args.output):
-                                subfolder = args.output
+                            if os.path.isdir(args.output_path):
+                                subfolder = args.output_path
                                 file = "output.png"
                             else:
-                                subfolder, file = os.path.split(args.output)
+                                subfolder, file = os.path.split(args.output_path)
                                 if subfolder == "":
                                     subfolder = os.getcwd()
                         else:
-                            if os.path.isdir(args.output):
-                                subfolder = args.output
+                            if os.path.isdir(args.output_path):
+                                subfolder = args.output_path
                                 file = filename_prefix
                             else:
-                                subfolder, file = os.path.split(args.output)
+                                subfolder, file = os.path.split(args.output_path)
 
                             if subfolder == "":
                                 subfolder = os.getcwd()
@@ -226,7 +226,7 @@ parser = argparse.ArgumentParser(
     description="A converted ComfyUI workflow. Required inputs listed below. Values passed should be valid JSON (assumes string if not valid JSON)."
 )
 parser.add_argument(
-    "--queue-size",
+    "--queue_size",
     "-q",
     type=int,
     default=1,
@@ -234,45 +234,42 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--comfyui-directory",
+    "--comfyui_directory",
     "-c",
     default=None,
     help="Where to look for ComfyUI (default: current directory)",
 )
 
 parser.add_argument(
-    "--output",
+    "--output_path",
     "-o",
     default=None,
-    help="The location to save the output image. Either a file path, a directory, or - for stdout (default: the ComfyUI output directory)",
+    help="The file path to save the output image. Either a file path, a directory, or - for stdout (default: the ComfyUI output directory)",
 )
 
 parser.add_argument(
-    "--disable-metadata",
+    "--disable_metadata",
     action="store_true",
     help="Disables writing workflow metadata to the outputs",
 )
 
-# 추가된 부분: 참조 이미지 입력 파이프라인
 parser.add_argument(
-    "--ref-image",
+    "--ref_image",
     "-r",
     type=str,
     required=True,
     help="The reference image to use for the generation.",
 )
 
-# 추가된 부분: 긍정적 프롬프트
 parser.add_argument(
-    "--positive-prompt",
+    "--positive_prompt",
     type=str,
     required=True,
     help="The positive prompt for the generation.",
 )
 
-# 추가된 부분: 부정적 프롬프트
 parser.add_argument(
-    "--negative-prompt",
+    "--negative_prompt",
     type=str,
     required=True,
     help="The negative prompt for the generation.",
@@ -288,7 +285,7 @@ args = None
 if __name__ == "__main__":
     args = parser.parse_args()
     sys.argv = comfy_args
-if args is not None and args.output is not None and args.output == "-":
+if args is not None and args.output_path is not None and args.output_path == "-":
     ctx = contextlib.redirect_stdout(sys.stderr)
 else:
     ctx = contextlib.nullcontext()
@@ -544,7 +541,7 @@ def main(*func_args, **func_kwargs):
             generated_image = Image.fromarray(generated_image_array)
         
             # 이미지 저장 경로 설정
-            output_path = args.output if args.output else os.path.join(os.getcwd(), "output.png")
+            output_path = args.output_path if args.output_path else os.path.join(os.getcwd(), "output.png")
             
             # 이미지 저장
             generated_image.save(output_path)
