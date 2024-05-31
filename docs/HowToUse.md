@@ -60,7 +60,7 @@ python3 TIFF.py \
 --ref_image # Path to the reference image
 --positive_prompt # Positive prompt for the desired image
 --negative_prompt # Negative prompt for the undesired elements
---output_dir # directory to save the generated image
+--output_path # file path to save the generated image
 --queue_size # Number of times the workflow will be executed (default: 1)
 ```
 
@@ -71,7 +71,7 @@ python3 TIFF.py \
 --ref_image ./images/AdultWoman.jpeg \
 --positive_prompt "full body, yellow hair, black jacket, sports clothes, walking on a sidewalk" \
 --negative_prompt "contortionist, amputee, polydactyly, deformed, distorted, misshapen, malformed, abnormal, mutant, defaced, shapeless" \
---output_dir ./output/ \
+--output_path ./output/output.jpeg \
 --queue_size 1 
 ```
 
@@ -84,7 +84,7 @@ python3 TIFF.py \
 ...     "positive_prompt": "full body, yellow hair, black jacket, sports clothes, walking on a sidewalk",
 ...     "negative_prompt": "contortionist, amputee, polydactyly, deformed, distorted, misshapen, malformed, abnormal, mutant, defaced, shapeless",
 ...     "ref_image": "./images/AdultWoman.jpeg",
-...     "output_dir" : "./output/",
+...     "output_path" : "./output/output.jpeg",
 ...     "queue_size": 1
 ... }
 >>> TIFF.main(**args)
