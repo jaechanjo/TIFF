@@ -3,7 +3,7 @@
 All commands should be executed within the `TIFF/` subfolder
 
 ## infer.py
-This script orchestrates a comprehensive system execution to generate customized animations utilizing text prompts and reference image, soure motion video.
+This script orchestrates a comprehensive system for generating customized animations using text prompts, reference images, and source motion videos. It is the inference code with BiRefNet removed, as proposed in the paper.
 
 ### 1. Run Python
 
@@ -50,6 +50,12 @@ python3 infer.py \
 >>> infer.main(**args)
 ```
 
+Example result:
+
+<img src="https://github.com/jaechanjo/TIFF/assets/89237860/595fbaa2-fdc9-448b-8aa3-d04e39f28308" alt="TIFF_result" width="200"/>
+
+
+
 ## TIFF.py
 This script is a component of the system dedicated to generating text-guided, full-body human images.
 
@@ -89,3 +95,9 @@ python3 TIFF.py \
 ... }
 >>> TIFF.main(**args)
 ```
+
+Example result:
+
+<img width="200" alt="System_result" src="https://github.com/jaechanjo/TIFF/assets/89237860/ec2759fc-a2ce-4b9d-acff-3509fd6de030">
+
+<img width="200" alt="System_video_result" src="https://github.com/jaechanjo/TIFF/assets/89237860/5a776b04-9786-46d8-b386-cc4df0737f91">
