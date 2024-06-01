@@ -1,3 +1,5 @@
+# This script is the inference code with BiRefNet removed, as proposed in the paper.
+
 import os
 import random
 import sys
