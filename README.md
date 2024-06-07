@@ -8,6 +8,8 @@ Python implementation
 
 ![variation](docs/images/variation.png)
 
+https://github.com/jaechanjo/TIFF/assets/89237860/a9fabb80-350c-41f2-9d84-6bdaf4c0aecf
+
 ### Performace by method
 1. Performance comparison of generated images between existing methods and TIFF.
 
