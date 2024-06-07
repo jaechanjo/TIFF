@@ -8,6 +8,8 @@ Python implementation
 
 ![variation](docs/images/variation.png)
 
+✨ **This is an example of animated characters referencing Korean actors Park Eun-bin, Park Seo-joon, and Park So-yi.** ✨
+
 https://github.com/jaechanjo/TIFF/assets/89237860/a9fabb80-350c-41f2-9d84-6bdaf4c0aecf
 
 ### Performace by method
