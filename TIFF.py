@@ -451,7 +451,7 @@ def main(*func_args, **func_kwargs):
             ipadapteradvanced_194 = ipadapteradvanced.apply_ipadapter(
                 weight=0.3,
                 weight_type="linear",
-                combine_embeds="concat",
+                combine_embeds="add",
                 start_at=0,
                 end_at=1,
                 embeds_scaling="V only",
@@ -517,7 +517,7 @@ def main(*func_args, **func_kwargs):
                 enabled=True,
                 swap_model="inswapper_128.onnx",
                 facedetection="retinaface_resnet50",
-                face_restore_model="codeformer-v0.1.0.pth",
+                face_restore_model="GFPGANv1.4.pth",
                 face_restore_visibility=1,
                 codeformer_weight=0.5,
                 detect_gender_input="no",
