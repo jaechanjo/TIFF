@@ -1,5 +1,3 @@
-# Usage
-
 All commands should be executed within the `TIFF/` subfolder
 
 ## infer.py
@@ -52,7 +50,7 @@ python3 infer.py \
 
 Example result:
 
-<img src="https://github.com/jaechanjo/TIFF/assets/89237860/595fbaa2-fdc9-448b-8aa3-d04e39f28308" alt="TIFF_result" width="200"/>
+<img src="https://github.com/jaechanjo/TIFF/assets/89237860/e3029d21-1845-42b9-9325-3a80187dbb98" alt="TIFF_result" width="200"/>
 
 
 
