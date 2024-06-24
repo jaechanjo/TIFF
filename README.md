@@ -1,8 +1,10 @@
 # TIFF
 
-TIFF: Text-Guided Generation of Full-Body Image with Preserved Reference Face for Customized Animation
+TIFF: Text-Guided Generation of Full-Body Image with Preserved Reference Face for Customized Animation | [Paper(ko)](https://drive.google.com/file/d/1TU5rc6F8UJdCfCjFMX-E56zgq2TWh03n/view?usp=drive_link), [Paper(en)](https://drive.google.com/file/d/139ngZOtshx8M7kdKGEYJoHrV5XElmT1i/view?usp=sharing), [PPT](https://drive.google.com/file/d/1h77WFQ4EG0aN49DM_xWfWIddQ1Ox3mBz/view?usp=drive_link)
 
 Python implementation
+
+
 
 **[Jaechan Jo](mailto:jjc123a@naver.com)**
 
